@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Electronic Store</title>
+        <!--Load Vue.js from a server-->
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.js"></script>
+        <script defer src="https://use.fontawesome.com/releases/v5.15.4/js/all.js" integrity="sha384-rOA1PnstxnOBLzCLMcre8ybwbTmemjzdNlILg8O7z1lUkLXozs4DHonlDtnE7fpc" crossorigin="anonymous"></script>
+        <script src="product.js"></script>
+        <link rel="stylesheet" type="text/css" href="styles.css">
+    </head>
+    <body>
+        <!--The element where Vue will mount-->
+        <div id="app">
+            <header>
+                <h1 v-text="sitename"></h1>
+                <button v-on:click='showCheckout'>
+                    <!-- 'cartItemCount' is used the same way as a data property. -->
+                    {{ cartItemCount }}
+                    <!-- add the cart icon -->
+                    <span class="fas fa-cart-plus"></span> Checkout
+                </button>
+            </header>
+            <main>
+              <button v-on:click="updateSorting('name')">Sort by Name</button>
+              <button v-on:click="updateSorting('price')">Sort by Price</button>
+              <button v-on:click="updateSorting('rating')">Sort by Rating</button>
+                <div v-if='showProduct'>
+                    <div v-for="product in sortedProducts">
+                        <!-- product information -->
+                <figure>
+                    <!-- bind 'src' attribute to 'product.image' in 'data' -->
+                    <img v-bind:src="product.image">
+                </figure>
+                <h2 v-text="product.title"></h2>
+                <p v-html="product.description"></p>
+                <!-- The double curly brackets is used instead of 'v-text' -->
+                <p>Price: {{product.price}}</p>
+                <p>Available Inventory: {{product.availableInventory - cartCount(product.id)}}</p>
+                <!-- This button will be displayed when 'canAddToCart' is True -->
+                <button v-on:click="addToCart(product)"
+                        v-if="canAddToCart(product)">
+                    Add To cart
+                </button>
+                <button disabled='disabled' v-else>
+                    Add to Cart
+                </button>
+                <span v-if='product.availableInventory === cartCount(product.id)'>
+                    All Out!
+                </span>
+                <span v-else-if="product.availableInventory - cartCount(product.id) < 5">
+                    Only {{product.availableInventory - cartCount(product.id)}} left!
+                </span>
+                <span v-else>Buy Now!</span>
+  
+                <div>
+                    <span v-for='n in product.rating'>★</span>
+                    <span v-for='n in 5-product.rating'>☆</span>
+                </div>
+                <!-- This button will be displayed otherwise -->
+            </div>
+            </div>
+            
+            <div v-else>
+                <h2>Checkout</h2>
+                <p>
+                    <strong>First Name:</strong>
+                    <!-- This input field is bound to 'firstName' in the 'order' object -->
+                    <input v-model.trim="order.firstName"/>
+                </p>
+                <p>
+                    <strong>Last Name:</strong>
+                    <!-- This input field is bound to 'lastName' in the 'order' object -->
+                    <input v-model.trim="order.lastName"/>
+                </p>
+                <p><strong>Address:</strong> <input v-model="order.address"/></p>
+                <p><strong>City:</strong> <input v-model="order.city"/></p>
+                <p>
+                    <strong>State:</strong>
+                    <select v-model="order.state">
+                        <option disabled value="">State</option>
+                        <option v-for="(state, key) in states"
+                        v-bind:value="state">
+                        {{key}}
+                    </option>
+                    </select>
+                </p>
+                <p><strong>Zip/Postal Code:</strong> <input v-model.number="order.zip" type="number"/></p>
+                <p><input type="checkbox" id="gift" value="true" 
+                    v-model="order.gift"
+                    v-bind:true-value="order.sendGift"
+                    v-bind:false-value="order.dontSendGift">
+                <label for="gift">Ship as Gift?</label></p>
+
+                <p><input type="radio" id="home" value="Home" v-model="order.method">
+                <label for="home">Home</label>
+                <input type="radio" id="business" value="Business" v-model="order.method">
+                <label for="business">Business</label></p>
+
+                <h2>Order Information</h2>
+                <p>First Name: {{order.firstName}}</p>
+                <p>Last Name: {{order.lastName}}</p>
+                <p>Address: {{order.address}}</p>
+                <p>City: {{order.city}}</p>
+                <p>State: {{order.state}}</p>
+                <p>Zip: {{order.zip}}</p>
+                <p>Gift? {{order.sendGift}}</p>
+                <p>Method {{order.method}}</p>
+                <div v-for="(productId, index) in cart" :key="index">
+                    <!-- Display only the products that are in the cart -->
+                    <h3>{{ getProductById(productId).title }} ({{ cartCount(productId) }})</h3>
+                    <figure>
+                        <img v-bind:src="getProductById(productId).image">
+                    </figure>
+                    <p v-html="getProductById(productId).description"></p>
+                    <p>Price: {{getProductById(productId).price}}</p>
+                    <p>rating: {{getProductById(productId).rating}}</p>
+                    <button @click="removeFromCart(productId)">Remove</button>
+                </div>
+                 <button v-on:click="submitForm">Place Order</button>
+            </div>
+            </main>
+        </div>
+
+        <script type="text/javascript">
+            let webstore = new Vue({ // The Vue instance
+                el: '#app' , // The 'option object': DOM Mounting point
+                data: {
+                    sitename: 'Electronics Shop',
+                    showProduct: true,
+                    order: {
+                        firstName: '',
+                        lastName: '',
+                        address: '',
+                        city: '',
+                        zip: '',
+                        state: '',
+                        method: 'Home',
+                        gift: false,
+                        sendGift: 'Send as a gift',
+                        dontSendGift: 'Do not send as a gift',
+                        sortCriteria: 'name', // default sort criteria
+                        sortOrder: 'asc', // default sort order
+                    },
+                    states: {
+                            AD: 'Abu Dhabi',
+                            DU: 'Dubai',
+                            SH: 'Sharjah',
+                            AJ: 'Ajman',
+                            FU: 'Fujairah',
+                            RA: 'Ras Al Khaimah',
+                            UQ: 'Umm Al Quwain',
+                        },
+                    products: products,
+                    //showProduct: true,
+                    cart: [] //array to store items in shopping cart
+                },
+                methods: {
+                    addToCart: function(product) {
+                        this.cart.push(product.id);
+                    },
+
+                    showCheckout() {
+                        this.showProduct = this.showProduct ? false : true;
+                    },
+
+                    submitForm() {
+                        event.preventDefault();
+                        alert('Order Submitted!');
+                    },
+
+                    canAddToCart: function(product) {
+                        return product.availableInventory > this.cartCount(product.id);
+                    },
+
+                    cartCount(id) {
+                        let count = 0;
+                        for (let i=0;i<this.cart.length;i++) {
+                            if (this.cart[i] === id) {
+                                count++;
+                            }
+                        }
+                        return count;
+                    },
+                    getProductById(productId) {
+                        // Find the product with the given productId in the products array
+                        return this.products.find(product => product.id === productId);
+                    },
+
+                    removeFromCart(productId) {
+                        const index = this.cart.indexOf(productId);
+                        if (index !== -1) {
+                            this.cart.splice(index, 1);
+                        }
+                    },
+                    cartCount(id) {
+                        return this.cart.filter(productId => productId === id).length;
+                    },
+
+                    updateSorting(criteria) {
+                        if (this.order.sortCriteria === criteria) {
+                       // If the same criteria is clicked again, toggle the sort order
+                        this.order.sortOrder = this.order.sortOrder === 'asc' ? 'desc' : 'asc';
+                        } else {
+                      // If a new criteria is clicked, set it as the sort criteria and default to ascending order
+                        this.order.sortCriteria = criteria;
+                        this.order.sortOrder = 'asc';
+                  }
+                },
+                },
+
+                computed: { // the Computed Property object
+                    cartItemCount: function() { // the Property name
+                        // its value is calculated when it is called
+                        return this.cart.length || '';
+                    },
+                    sortedProducts() {
+                    let productsArray = this.products.slice(0);
+                    const order = this.order;
+
+                    // Define a dynamic comparison function based on sortCriteria
+                    function compare(a, b) {
+                        if (a[order.sortCriteria] < b[order.sortCriteria])
+                            return order.sortOrder === 'asc' ? -1 : 1;
+                        if (a[order.sortCriteria] > b[order.sortCriteria])
+                            return order.sortOrder === 'asc' ? 1 : -1;
+                        return 0;
+                    }
+
+                    // Sort the products array using the dynamic comparison function
+                    return productsArray.sort(compare);
+                },                    
+                },
+            });
+        </script>
+</body>
+</html>
